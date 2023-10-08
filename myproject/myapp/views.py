@@ -1,13 +1,12 @@
 from django.shortcuts import render
+import json
+from django.http import JsonResponse, HttpResponse
 
 from django.contrib.auth.forms import UserCreationForm
-
-from myapp.models import CustomUser
 from django.contrib.auth import login
 from django.shortcuts import render, redirect
 
-from django.http import JsonResponse, HttpResponse
-import json
+from myapp.models import CustomUser, DailyInput
 
 
 # Create your views here.
@@ -73,4 +72,51 @@ def all_users(request):
     response_data = {"usernames": user_data_list}
     return JsonResponse(response_data)
 
+def get_my_id(request):
+    try:
+        username = request.GET.get('username')
+        user = CustomUser.objects.get(username=username)
+        my_id = user.id
+        response_data = {'my_id': my_id}
+        return JsonResponse(response_data)
+    except CustomUser.DoesNotExist:
+        return JsonResponse({'error': 'User not found'}, status=404)
 
+def create_daily_input(request):
+    if request.method == 'POST':
+        try:
+            # Parse the JSON data from the request body
+            data = json.loads(request.body)
+            
+            # Create a DailyInput instance
+            daily_input = DailyInput(
+                date=data['date'],
+                user=request.user,  # Assuming you have authentication in place
+                wellbeing=data['wellbeing'],
+                vigor=data['vigor'],
+                foods=data['foods'],
+                hours_slept=data['hours_slept'],
+                wakeup_time=data['wakeup_time']
+            )
+            
+            # Save the instance
+            daily_input.save()
+            
+            return JsonResponse({'message': 'DailyInput created successfully'}, status=201)
+        
+        except json.JSONDecodeError as e:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        except KeyError as e:
+            return JsonResponse({'error': f'Missing field: {e}'}, status=400)
+    
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+def get_all_daily_input_by_user(request):
+    if request.method == 'GET':
+        try:
+            user_id = request.GET.get('user_id')
+            daily_inputs = DailyInput.objects.filter(user_id=user_id)
+            response_data = {'my_daily_inputs': list(daily_inputs.values())}
+            return JsonResponse(response_data)
+        except DailyInput.DoesNotExist:
+            return JsonResponse({'error': 'User not found'}, status=404)

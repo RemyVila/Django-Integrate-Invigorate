@@ -22,4 +22,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('register/', views.register, name='register'),
     path('all_users/', views.all_users, name='all users'),
+    path('my_id/', views.get_my_id, name='get my id'),
+    path('daily_input/', views.create_daily_input, name='daily input'),
+    path('my_daily_inputs/', views.get_all_daily_input_by_user, name='my daily inputs'),
 ]
