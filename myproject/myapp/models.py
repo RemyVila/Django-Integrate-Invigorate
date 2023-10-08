@@ -1,7 +1,10 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
-from django.db import models
 from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+from django.db import models
 from django.utils import timezone
+import datetime
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 # Create your models here.
 
@@ -51,3 +54,27 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.username
+
+
+
+User = get_user_model()
+
+class DailyInput(models.Model):
+    date = models.DateField()
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    wellbeing = models.PositiveIntegerField()  # You can adjust the field type as needed
+    vigor = models.PositiveIntegerField()
+    foods = models.JSONField(default=dict)
+    hours_slept = models.IntegerField(
+        default=6,
+        validators=[MaxValueValidator(24), MinValueValidator(0)]
+    )
+    wakeup_time = models.TimeField(default=None)
+
+    class Meta:
+        verbose_name = "Daily Input"
+        verbose_name_plural = "Daily Inputs"
+
+    def __str__(self):
+        return f"Daily Input for {self.user.username} on {self.date}"
+
