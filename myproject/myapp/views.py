@@ -1,6 +1,9 @@
 from django.shortcuts import render
 import json
 from django.http import JsonResponse, HttpResponse
+from django.http import HttpResponseBadRequest
+from django.http import HttpResponseNotFound
+from django.http import HttpResponseServerError
 
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
@@ -12,7 +15,8 @@ from django.db.models import Q
 from myapp.models import CustomUser, DailyInput
 
 from .calculations import input_correlations
-mean_wb_vigor = input_correlations.average_wellbeing_and_vigor_by_hours_slept
+mean_wb_vigor_hours_slept = input_correlations.average_wellbeing_and_vigor_by_hours_slept
+mean_wb_vigor_unique_foods = input_correlations.average_wellbeing_and_vigor_by_unique_foods
 # Create your views here.
 
 def register(request):
@@ -156,7 +160,6 @@ def get_all_daily_input_by_user(request):
         except CustomUser.DoesNotExist:
             return JsonResponse({'error': 'User not found'}, status=404)
 
-
 def get_average_wellbeing_vigor_by_hours_slept(request):
     if request.method == 'GET':
         try:
@@ -170,11 +173,39 @@ def get_average_wellbeing_vigor_by_hours_slept(request):
             daily_inputs_data = [{'hours_slept': entry.hours_slept, 'wellbeing': entry.wellbeing, 'vigor': entry.vigor}
                                  for entry in daily_inputs]
 
-            # Calculate the response using the modified mean_wb_vigor function
-            response = mean_wb_vigor(daily_inputs_data)
+            # Calculate the response using the modified mean_wb_vigor_hours_slept function
+            response = mean_wb_vigor_hours_slept(daily_inputs_data)
 
             # Return the response as JSON
             return JsonResponse({"response": response})
 
         except DailyInput.DoesNotExist:
             return JsonResponse({'error': 'Data not found'}, status=404)
+
+def get_average_wellbeing_vigor_by_foods(request):
+    if request.method == 'GET':
+        try:
+            # Get the username from the request's GET parameters
+            username = request.GET.get('username')
+
+            # Fetch DailyInput entries for the specified username
+            daily_inputs = DailyInput.objects.filter(user__username=username).values()
+
+            # Convert the queryset to a list of dictionaries
+            daily_input_data = list(daily_inputs)
+
+            if not daily_input_data:
+                # Return a not found response if there are no entries under that username
+                return HttpResponseNotFound("No entries under that username.")
+
+            # Calculate the average wellbeing and vigor by unique foods using the imported function
+            average_stats = mean_wb_vigor_unique_foods(daily_input_data)
+
+            # Return the results as a JSON response
+            return JsonResponse(average_stats)
+        except Exception as e:
+            # Handle exceptions and return a custom error response
+            return HttpResponseServerError("Internal Server Error: " + str(e))
+    else:
+        # Return a bad request response for non-GET requests
+        return HttpResponseBadRequest("Bad Request: Only GET requests are supported.")
