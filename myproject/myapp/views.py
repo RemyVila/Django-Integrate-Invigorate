@@ -91,10 +91,18 @@ def create_daily_input(request):
         try:
             # Parse the JSON data from the request body
             data = json.loads(request.body)
-            
-            # Create a DailyInput instance
+
+            # Check if a DailyInput already exists for today and the current user
+            today = timezone.now().date()
+            existing_input = DailyInput.objects.filter(user=request.user, date=today).first()
+
+            if existing_input:
+                # If an entry for today already exists, invoke the update_daily_input function
+                return update_daily_input(request, existing_input, data)
+
+            # Create a new DailyInput instance with today's date
             daily_input = DailyInput(
-                date=data['date'],
+                date=today,
                 user=request.user,  # Assuming you have authentication in place
                 wellbeing=data['wellbeing'],
                 vigor=data['vigor'],
@@ -102,18 +110,40 @@ def create_daily_input(request):
                 hours_slept=data['hours_slept'],
                 wakeup_time=data['wakeup_time']
             )
-            
+
             # Save the instance
             daily_input.save()
-            
+
             return JsonResponse({'message': 'DailyInput created successfully'}, status=201)
-        
+
         except json.JSONDecodeError as e:
             return JsonResponse({'error': 'Invalid JSON data'}, status=400)
         except KeyError as e:
             return JsonResponse({'error': f'Missing field: {e}'}, status=400)
-    
+
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+def update_daily_input(request, existing_input, new_data):
+    new_foods = new_data.get('foods', {}).get('foods', [])
+    existing_foods = existing_input.foods.get('foods', [])
+    
+    # Merge the new foods with the existing foods, removing duplicates
+    merged_foods = list(set(existing_foods + new_foods))
+    
+    # Update other fields if provided in the new data
+    existing_input.wellbeing = new_data.get('wellbeing', existing_input.wellbeing)
+    existing_input.vigor = new_data.get('vigor', existing_input.vigor)
+    existing_input.hours_slept = new_data.get('hours_slept', existing_input.hours_slept)
+    existing_input.wakeup_time = new_data.get('wakeup_time', existing_input.wakeup_time)
+    
+    # Update the foods list in the existing input with the merged list
+    existing_input.foods['foods'] = merged_foods
+
+    # Save the updated instance
+    existing_input.save()
+
+    return JsonResponse({'message': 'DailyInput updated successfully'}, status=200)
+
 
 def get_all_daily_input_by_user(request):
     if request.method == 'GET':
