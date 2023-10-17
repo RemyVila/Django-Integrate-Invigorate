@@ -25,4 +25,5 @@ urlpatterns = [
     path('my_id/', views.get_my_id, name='get my id'),
     path('daily_input/', views.create_daily_input, name='daily input'),
     path('my_daily_inputs/', views.get_all_daily_input_by_user, name='my daily inputs'),
+    path('my_averages_by_hours_slept/', views.get_average_wellbeing_vigor_by_hours_slept, name='my averages by hours slept'),
 ]

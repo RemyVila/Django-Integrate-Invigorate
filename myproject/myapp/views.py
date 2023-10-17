@@ -6,9 +6,13 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
 from django.shortcuts import render, redirect
 
+from django.utils import timezone
+from django.db.models import Q
+
 from myapp.models import CustomUser, DailyInput
 
-
+from .calculations import input_correlations
+mean_wb_vigor = input_correlations.average_wellbeing_and_vigor_by_hours_slept
 # Create your views here.
 
 def register(request):
@@ -114,9 +118,33 @@ def create_daily_input(request):
 def get_all_daily_input_by_user(request):
     if request.method == 'GET':
         try:
-            user_id = request.GET.get('user_id')
-            daily_inputs = DailyInput.objects.filter(user_id=user_id)
+            username = request.GET.get('username')
+            user = CustomUser.objects.get(username=username)
+            daily_inputs = DailyInput.objects.filter(user=user)
             response_data = {'my_daily_inputs': list(daily_inputs.values())}
             return JsonResponse(response_data)
-        except DailyInput.DoesNotExist:
+        except CustomUser.DoesNotExist:
             return JsonResponse({'error': 'User not found'}, status=404)
+
+
+def get_average_wellbeing_vigor_by_hours_slept(request):
+    if request.method == 'GET':
+        try:
+            # Get the username from the request
+            username = request.GET.get('username')
+
+            # Get the DailyInput objects for the user
+            daily_inputs = DailyInput.objects.filter(user__username=username)
+
+            # Convert the queryset into a list of dictionaries
+            daily_inputs_data = [{'hours_slept': entry.hours_slept, 'wellbeing': entry.wellbeing, 'vigor': entry.vigor}
+                                 for entry in daily_inputs]
+
+            # Calculate the response using the modified mean_wb_vigor function
+            response = mean_wb_vigor(daily_inputs_data)
+
+            # Return the response as JSON
+            return JsonResponse({"response": response})
+
+        except DailyInput.DoesNotExist:
+            return JsonResponse({'error': 'Data not found'}, status=404)
