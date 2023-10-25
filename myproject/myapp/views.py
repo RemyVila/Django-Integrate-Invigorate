@@ -6,7 +6,11 @@ from django.http import HttpResponseNotFound
 from django.http import HttpResponseServerError
 
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth import login
+from django.contrib.auth import login, authenticate
+from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import check_password
+
 from django.shortcuts import render, redirect
 
 from django.utils import timezone
@@ -17,6 +21,7 @@ from myapp.models import CustomUser, DailyInput
 from .calculations import input_correlations
 mean_wb_vigor_hours_slept = input_correlations.average_wellbeing_and_vigor_by_hours_slept
 mean_wb_vigor_unique_foods = input_correlations.average_wellbeing_and_vigor_by_unique_foods
+
 # Create your views here.
 
 def register(request):
@@ -59,6 +64,33 @@ def register(request):
             return JsonResponse({"message": "Invalid JSON data"}, status=400)
     else:
         return JsonResponse({"message": "Invalid request method"}, status=405)
+
+def login_view(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body.decode('utf-8'))  # Parse JSON data
+            username = data.get('username')
+            password = data.get('password')
+
+            # Query the database to find the user
+            User = get_user_model()
+            try:
+                user = User.objects.get(username=username)
+            except User.DoesNotExist:
+                return JsonResponse({'message': 'User not found'}, status=400)
+
+            # Compare the provided password with the hashed password in the database
+            if check_password(password, user.password):
+                # Passwords match; you can log in the user here if needed
+                return JsonResponse({'message': 'Login successful'})
+            else:
+                # Passwords do not match
+                return JsonResponse({'message': 'Login failed'}, status=400)
+
+        except json.JSONDecodeError as e:
+            return JsonResponse({'message': 'Invalid JSON data'}, status=400)
+
+    return JsonResponse({'message': 'Invalid request method'}, status=405)
 
 def all_users(request):
     # Query all user objects from the database
@@ -147,7 +179,6 @@ def update_daily_input(request, existing_input, new_data):
     existing_input.save()
 
     return JsonResponse({'message': 'DailyInput updated successfully'}, status=200)
-
 
 def get_all_daily_input_by_user(request):
     if request.method == 'GET':

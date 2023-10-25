@@ -21,6 +21,7 @@ from myapp import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('register/', views.register, name='register'),
+    path('login/', views.login_view, name='login_view'),
     path('all_users/', views.all_users, name='all users'),
     path('my_id/', views.get_my_id, name='get my id'),
     path('daily_input/', views.create_daily_input, name='daily input'),
